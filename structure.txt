@@ -1,4 +1,9 @@
-my_map_project/
-├── app.py
-└── templates/
-    └── index.html
+moscow-map/
+├── app.py                 # Основной сервер Flask
+├── templates/
+│   └── index.html        # HTML-шаблон
+├── markers.json          # Сохранённые точки
+├── areas.json            # Сохранённые парки
+├── routes.json           # Сохранённые маршруты
+├── requirements.txt      # Зависимости
+└── README.md            # Описание проекта
