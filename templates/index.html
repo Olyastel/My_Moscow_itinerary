@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Моя карта Москвы</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px 10px 0 0;
+            border-bottom: 3px solid #1a73e8;
+        }
+        .header h1 { color: #1a73e8; font-size: 28px; }
+        .header p { color: #666; margin-top: 5px; }
+        
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 0;
+            background: white;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        #map { height: 500px; width: 100%; border-right: 1px solid #e0e0e0; }
+        
+        .sidebar {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+        
+        .sidebar h3 { margin-bottom: 15px; color: #333; font-size: 16px; }
+        
+        .mode-switch {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .mode-switch .btn {
+            flex: 1;
+            min-width: 70px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s;
+            background: white;
+        }
+        .mode-switch .btn.active {
+            background: #1a73e8;
+            color: white;
+            border-color: #1a73e8;
+        }
+        .mode-switch .btn:not(.active):hover { background: #f0f2f5; }
+        
+        .form-group { margin-bottom: 12px; }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #555;
+            font-size: 13px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #1a73e8;
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 50px;
+            font-family: inherit;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-success { background: #34a853; color: white; }
+        .btn-success:hover { background: #2d9248; }
+        .btn-danger { background: #ea4335; color: white; }
+        .btn-danger:hover { background: #d33426; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-warning { background: #fbbc04; color: #333; }
+        .btn-warning:hover { background: #e5ac00; }
+        .btn-purple { background: #9c27b0; color: white; }
+        .btn-purple:hover { background: #7b1fa2; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; width: auto; margin: 2px; }
+        
+        .photo-upload {
+            border: 2px dashed #d0d0d0;
+            padding: 15px;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .photo-upload:hover { border-color: #1a73e8; background: #f8f9ff; }
+        .photo-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+        .photo-preview {
+            max-width: 100%;
+            max-height: 120px;
+            margin-top: 10px;
+            border-radius: 6px;
+            display: none;
+        }
+        .photo-preview.show { display: block; }
+        
+        .status-message {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+            font-weight: 500;
+            font-size: 13px;
+        }
+        .status-message.show { display: block; }
+        .status-message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-message.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status-message.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        
+        .coords-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #1a73e8;
+            font-size: 13px;
+            margin-bottom: 15px;
+            min-height: 50px;
+        }
+        
+        .places-list {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #f0f2f5;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .places-list h4 { color: #333; font-size: 14px; margin-bottom: 10px; }
+        
+        .place-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid #1a73e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        .place-item:hover { background: #e8f0fe; }
+        .place-item .info { flex: 1; min-width: 0; }
+        .place-item .name { font-weight: 600; font-size: 14px; color: #333; }
+        .place-item .type { font-size: 12px; color: #666; margin-left: 5px; }
+        .place-item .details { font-size: 12px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .place-item .actions { display: flex; gap: 5px; flex-shrink: 0; margin-left: 10px; }
+        .place-item .actions .btn { padding: 4px 10px; font-size: 12px; width: auto; margin: 0; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .modal-content h3 { margin-bottom: 20px; color: #333; }
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            background: none;
+            border: none;
+        }
+        .modal-close:hover { color: #333; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #f0f2f5;
+        }
+        .stats .stat-item { font-size: 12px; color: #666; }
+        .stats .stat-item span { font-weight: 700; color: #333; }
+        
+        .polygon-instructions {
+            background: #e8f0fe;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 13px;
+            border-left: 4px solid #1a73e8;
+        }
+        .polygon-instructions .step { margin: 3px 0; }
+        .polygon-instructions .step strong { color: #1a73e8; }
+        
+        .draw-toolbar {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .draw-toolbar .btn { width: auto; margin: 5px; padding: 8px 16px; display: inline-block; }
+        
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .tabs .btn {
+            flex: 1;
+            min-width: 60px;
+            padding: 8px;
+            font-size: 12px;
+            margin: 0;
+            background: #f0f2f5;
+            color: #666;
+        }
+        .tabs .btn.active { background: #1a73e8; color: white; }
+        
+        .empty-message { color: #999; text-align: center; padding: 20px; font-size: 14px; }
+        
+        .route-color-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 5px;
+        }
+        .route-color-picker .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .route-color-picker .color-option:hover { transform: scale(1.1); }
+        .route-color-picker .color-option.active { border-color: #333; }
+        
+        .leaflet-popup-content { max-height: 300px; overflow-y: auto; }
+        .leaflet-popup-content img { max-width: 100%; border-radius: 4px; margin: 5px 0; }
+        
+        @media (max-width: 768px) {
+            .main-layout { grid-template-columns: 1fr; }
+            #map { height: 350px; border-right: none; border-bottom: 1px solid #e0e0e0; }
+            .sidebar { max-height: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Интерактивная карта Москвы</h1>
+            <p>Кликните для добавления точки, нарисуйте парк или проложите маршрут</p>
+        </div>
+        
+        <div class="main-layout">
+            <div id="map"></div>
+            
+            <div class="sidebar">
+                <h3>Режим работы</h3>
+                <div class="mode-switch">
+                    <button class="btn active" id="modePoint" onclick="setMode('point')">Точка</button>
+                    <button class="btn" id="modeArea" onclick="setMode('area')">Парк</button>
+                    <button class="btn" id="modeRoute" onclick="setMode('route')">Путь</button>
+                </div>
+                
+                <div id="coordsInfo" class="coords-info">
+                    Кликните на карту, чтобы добавить место
+                </div>
+                
+                <!-- Форма для точки -->
+                <div id="pointForm">
+                    <div class="form-group">
+                        <label>Название *</label>
+                        <input type="text" id="placeName" placeholder="Название места">
+                    </div>
+                    <div class="form-group">
+                        <label>Рейтинг</label>
+                        <select id="placeRating">
+                            <option value="neutral">Без оценки</option>
+                            <option value="like">❤️ Нравится</option>
+                            <option value="dislike">💩 Не нравится</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Комментарий</label>
+                        <textarea id="placeComment" placeholder="Что запомнилось?"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Фото</label>
+                        <div class="photo-upload">
+                            <span>Нажмите для загрузки фото</span>
+                            <input type="file" accept="image/*" id="photoInput" onchange="handlePhotoUpload(event)">
+                        </div>
+                        <img id="photoPreview" class="photo-preview" alt="Предпросмотр">
+                    </div>
+                    <button class="btn btn-primary" onclick="addMarker()">Добавить место</button>
+                </div>
+                
+                <!-- Форма для парка -->
+                <div id="areaForm" style="display:none;">
+                    <div class="polygon-instructions">
+                        <div class="step"><strong>Шаг 1:</strong> Нажмите "Начать рисовать парк"</div>
+                        <div class="step"><strong>Шаг 2:</strong> Кликайте по карте, чтобы создать границы</div>
+                        <div class="step"><strong>Шаг 3:</strong> Кликните на первую точку, чтобы завершить</div>
+                        <div class="step"><strong>Шаг 4:</strong> Заполните форму и нажмите "Сохранить"</div>
+                    </div>
+                    <div class="draw-toolbar">
+                        <button class="btn btn-success" id="startDrawingBtn" onclick="startDrawing()">Начать рисовать парк</button>
+                        <button class="btn btn-danger" id="cancelDrawingBtn" onclick="cancelDrawing()" style="display:none;">Отменить</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Название парка *</label>
+                        <input type="text" id="areaName" placeholder="Название парка">
+                    </div>
+                    <div class="form-group">
+                        <label>Рейтинг</label>
+                        <select id="areaRating">
+                            <option value="neutral">Без оценки</option>
+                            <option value="like">❤️ Нравится</option>
+                            <option value="dislike">💩 Не нравится</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Комментарий</label>
+                        <textarea id="areaComment" placeholder="Что здесь есть?"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Фото парка</label>
+                        <div class="photo-upload">
+                            <span>Нажмите для загрузки фото</span>
+                            <input type="file" accept="image/*" id="areaPhotoInput" onchange="handleAreaPhotoUpload(event)">
+                        </div>
+                        <img id="areaPhotoPreview" class="photo-preview" alt="Предпросмотр">
+                    </div>
+                    <button class="btn btn-success" onclick="addArea()" id="saveAreaBtn" disabled>Сохранить парк</button>
+                </div>
+                
+                <!-- Форма для маршрута -->
+                <div id="routeForm" style="display:none;">
+                    <div class="polygon-instructions">
+                        <div class="step"><strong>Шаг 1:</strong> Нажмите "Начать рисовать путь"</div>
+                        <div class="step"><strong>Шаг 2:</strong> Кликайте по карте, чтобы добавить точки пути</div>
+                        <div class="step"><strong>Шаг 3:</strong> Нажмите "Завершить путь"</div>
+                        <div class="step"><strong>Шаг 4:</strong> Заполните форму и нажмите "Сохранить"</div>
+                    </div>
+                    <div class="draw-toolbar">
+                        <button class="btn btn-purple" id="startRouteBtn" onclick="startRouteDrawing()">Начать рисовать путь</button>
+                        <button class="btn btn-success" id="finishRouteBtn" onclick="finishRouteDrawing()" style="display:none;">Завершить путь</button>
+                        <button class="btn btn-danger" id="cancelRouteBtn" onclick="cancelRouteDrawing()" style="display:none;">Отменить</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Название маршрута *</label>
+                        <input type="text" id="routeName" placeholder="Название маршрута">
+                    </div>
+                    <div class="form-group">
+                        <label>Цвет маршрута</label>
+                        <div class="route-color-picker">
+                            <div class="color-option active" style="background:#1a73e8;" onclick="selectRouteColor('#1a73e8')"></div>
+                            <div class="color-option" style="background:#34a853;" onclick="selectRouteColor('#34a853')"></div>
+                            <div class="color-option" style="background:#ea4335;" onclick="selectRouteColor('#ea4335')"></div>
+                            <div class="color-option" style="background:#fbbc04;" onclick="selectRouteColor('#fbbc04')"></div>
+                            <div class="color-option" style="background:#9c27b0;" onclick="selectRouteColor('#9c27b0')"></div>
+                            <div class="color-option" style="background:#ff6d00;" onclick="selectRouteColor('#ff6d00')"></div>
+                            <div class="color-option" style="background:#00bcd4;" onclick="selectRouteColor('#00bcd4')"></div>
+                            <div class="color-option" style="background:#e91e63;" onclick="selectRouteColor('#e91e63')"></div>
+                        </div>
+                        <input type="hidden" id="routeColor" value="#1a73e8">
+                    </div>
+                    <div class="form-group">
+                        <label>Комментарий</label>
+                        <textarea id="routeComment" placeholder="Описание маршрута"></textarea>
+                    </div>
+                    <button class="btn btn-success" onclick="addRoute()" id="saveRouteBtn" disabled>Сохранить маршрут</button>
+                </div>
+                
+                <div id="statusMessage" class="status-message"></div>
+                
+                <div class="stats">
+                    <div class="stat-item">Точек: <span id="pointCount">0</span></div>
+                    <div class="stat-item">Парков: <span id="areaCount">0</span></div>
+                    <div class="stat-item">Путей: <span id="routeCount">0</span></div>
+                    <div class="stat-item">Нравится: <span id="likeCount">0</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Список -->
+        <div style="background: white; border-radius: 0 0 10px 10px; padding: 20px; margin-top: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="color: #333;">Мои места, парки и маршруты</h3>
+                <div>
+                    <button class="btn btn-secondary btn-sm" onclick="loadData()">Обновить</button>
+                    <button class="btn btn-danger btn-sm" onclick="clearAll()">Очистить всё</button>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <button class="btn active" id="tabAll" onclick="switchTab('all')">Все</button>
+                <button class="btn" id="tabPoints" onclick="switchTab('points')">Точки</button>
+                <button class="btn" id="tabAreas" onclick="switchTab('areas')">Парки</button>
+                <button class="btn" id="tabRoutes" onclick="switchTab('routes')">Пути</button>
+            </div>
+            
+            <div id="placesList" class="places-list">
+                <div class="empty-message">Загружаем данные...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модалка -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeEditModal()">✕</button>
+            <h3 id="editModalTitle">Редактировать</h3>
+            <input type="hidden" id="editId">
+            <input type="hidden" id="editType">
+            
+            <div class="form-group">
+                <label>Название *</label>
+                <input type="text" id="editName" placeholder="Название">
+            </div>
+            
+            <div class="form-group">
+                <label>Рейтинг</label>
+                <select id="editRating">
+                    <option value="neutral">Без оценки</option>
+                    <option value="like">❤️ Нравится</option>
+                    <option value="dislike">💩 Не нравится</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="editColorGroup" style="display:none;">
+                <label>Цвет</label>
+                <div class="route-color-picker" id="editColorPicker">
+                    <div class="color-option" style="background:#1a73e8;" onclick="selectEditColor('#1a73e8')"></div>
+                    <div class="color-option" style="background:#34a853;" onclick="selectEditColor('#34a853')"></div>
+                    <div class="color-option" style="background:#ea4335;" onclick="selectEditColor('#ea4335')"></div>
+                    <div class="color-option" style="background:#fbbc04;" onclick="selectEditColor('#fbbc04')"></div>
+                    <div class="color-option" style="background:#9c27b0;" onclick="selectEditColor('#9c27b0')"></div>
+                    <div class="color-option" style="background:#ff6d00;" onclick="selectEditColor('#ff6d00')"></div>
+                    <div class="color-option" style="background:#00bcd4;" onclick="selectEditColor('#00bcd4')"></div>
+                    <div class="color-option" style="background:#e91e63;" onclick="selectEditColor('#e91e63')"></div>
+                </div>
+                <input type="hidden" id="editColor" value="#1a73e8">
+            </div>
+            
+            <div class="form-group">
+                <label>Комментарий</label>
+                <textarea id="editComment" placeholder="Комментарий"></textarea>
+            </div>
+            
+            <div class="form-group" id="editPhotoGroup">
+                <label>Фото</label>
+                <div class="photo-upload">
+                    <span>Нажмите для замены фото</span>
+                    <input type="file" accept="image/*" id="editPhotoInput" onchange="handleEditPhotoUpload(event)">
+                </div>
+                <img id="editPhotoPreview" class="photo-preview" alt="Предпросмотр">
+            </div>
+            
+            <button class="btn btn-success" onclick="saveEdit()">Сохранить изменения</button>
+            <button class="btn btn-secondary" onclick="closeEditModal()" style="margin-top:5px;">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        let map, markersLayer, areasLayer, routesLayer;
+        let currentMode = 'point';
+        let selectedLat = null, selectedLng = null, selectedMarker = null;
+        let currentPhoto = null, currentAreaPhoto = null;
+        
+        let isDrawingMode = false, polygonPoints = [], tempPolygon = null;
+        let isRouteDrawingMode = false, routePoints = [], tempRouteLine = null;
+        let selectedRouteColor = '#1a73e8';
+        
+        let allMarkers = [], allAreas = [], allRoutes = [];
+        let currentTab = 'all';
+        let editItemId = null, editItemType = null;
+
+        function initMap() {
+            map = L.map('map', {
+                center: [55.7558, 37.6173],
+                zoom: 12
+            });
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+            
+            markersLayer = L.layerGroup().addTo(map);
+            areasLayer = L.layerGroup().addTo(map);
+            routesLayer = L.layerGroup().addTo(map);
+            
+            map.on('click', function(e) {
+                if (currentMode === 'point') {
+                    handlePointClick(e);
+                } else if (currentMode === 'area' && isDrawingMode) {
+                    handlePolygonClick(e);
+                } else if (currentMode === 'route' && isRouteDrawingMode) {
+                    handleRouteClick(e);
+                }
+            });
+            
+            loadData();
+        }
+
+        function handlePointClick(e) {
+            selectedLat = e.latlng.lat;
+            selectedLng = e.latlng.lng;
+            
+            if (selectedMarker) map.removeLayer(selectedMarker);
+            
+            selectedMarker = L.marker([selectedLat, selectedLng], {
+                icon: L.divIcon({
+                    html: `<div style="background:#000;border-radius:50%;width:16px;height:16px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                })
+            }).addTo(map);
+            
+            document.getElementById('coordsInfo').innerHTML = 
+                'Выбрано: ' + selectedLat.toFixed(6) + ', ' + selectedLng.toFixed(6);
+            document.getElementById('placeName').focus();
+            showStatus('Место выбрано, введите название', 'success');
+        }
+
+        function handlePolygonClick(e) {
+            polygonPoints.push([e.latlng.lat, e.latlng.lng]);
+            if (tempPolygon) map.removeLayer(tempPolygon);
+            if (polygonPoints.length >= 2) {
+                tempPolygon = L.polygon(polygonPoints, {
+                    color: '#2d7d46',
+                    weight: 3,
+                    fillColor: '#4caf50',
+                    fillOpacity: 0.25
+                }).addTo(map);
+            }
+            if (polygonPoints.length >= 3) {
+                let first = polygonPoints[0];
+                let last = polygonPoints[polygonPoints.length - 1];
+                let d = Math.hypot(first[0] - last[0], first[1] - last[1]);
+                if (d < 0.0005) finishDrawing();
+            }
+        }
+
+        function handleRouteClick(e) {
+            routePoints.push([e.latlng.lat, e.latlng.lng]);
+            if (tempRouteLine) map.removeLayer(tempRouteLine);
+            if (routePoints.length >= 2) {
+                tempRouteLine = L.polyline(routePoints, {
+                    color: selectedRouteColor,
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(map);
+            }
+        }
+
+        function startDrawing() {
+            isDrawingMode = true;
+            polygonPoints = [];
+            if (tempPolygon) map.removeLayer(tempPolygon);
+            document.getElementById('startDrawingBtn').style.display = 'none';
+            document.getElementById('cancelDrawingBtn').style.display = 'inline-block';
+            document.getElementById('saveAreaBtn').disabled = true;
+            showStatus('Рисуйте парк, кликая по карте', 'info');
+            map.getContainer().style.cursor = 'crosshair';
+        }
+
+        function finishDrawing() {
+            if (polygonPoints.length < 3) {
+                showStatus('Нужно минимум 3 точки', 'error');
+                return;
+            }
+            isDrawingMode = false;
+            polygonPoints.pop();
+            if (tempPolygon) map.removeLayer(tempPolygon);
+            tempPolygon = L.polygon(polygonPoints, {
+                color: '#2d7d46',
+                weight: 3,
+                fillColor: '#4caf50',
+                fillOpacity: 0.25
+            }).addTo(map);
+            document.getElementById('startDrawingBtn').style.display = 'inline-block';
+            document.getElementById('cancelDrawingBtn').style.display = 'none';
+            document.getElementById('saveAreaBtn').disabled = false;
+            showStatus('Парк готов (' + polygonPoints.length + ' точек)', 'success');
+            map.getContainer().style.cursor = '';
+            document.getElementById('areaName').focus();
+        }
+
+        function cancelDrawing() {
+            isDrawingMode = false;
+            if (tempPolygon) map.removeLayer(tempPolygon);
+            polygonPoints = [];
+            document.getElementById('startDrawingBtn').style.display = 'inline-block';
+            document.getElementById('cancelDrawingBtn').style.display = 'none';
+            document.getElementById('saveAreaBtn').disabled = true;
+            showStatus('Рисование отменено', 'info');
+            map.getContainer().style.cursor = '';
+        }
+
+        function startRouteDrawing() {
+            isRouteDrawingMode = true;
+            routePoints = [];
+            if (tempRouteLine) map.removeLayer(tempRouteLine);
+            document.getElementById('startRouteBtn').style.display = 'none';
+            document.getElementById('finishRouteBtn').style.display = 'inline-block';
+            document.getElementById('cancelRouteBtn').style.display = 'inline-block';
+            document.getElementById('saveRouteBtn').disabled = true;
+            showStatus('Рисуйте путь, кликая по карте', 'info');
+            map.getContainer().style.cursor = 'crosshair';
+        }
+
+        function finishRouteDrawing() {
+            if (routePoints.length < 2) {
+                showStatus('Нужно минимум 2 точки', 'error');
+                return;
+            }
+            isRouteDrawingMode = false;
+            if (tempRouteLine) map.removeLayer(tempRouteLine);
+            tempRouteLine = L.polyline(routePoints, {
+                color: selectedRouteColor,
+                weight: 4,
+                opacity: 0.8
+            }).addTo(map);
+            document.getElementById('startRouteBtn').style.display = 'inline-block';
+            document.getElementById('finishRouteBtn').style.display = 'none';
+            document.getElementById('cancelRouteBtn').style.display = 'none';
+            document.getElementById('saveRouteBtn').disabled = false;
+            showStatus('Путь готов (' + routePoints.length + ' точек)', 'success');
+            map.getContainer().style.cursor = '';
+            document.getElementById('routeName').focus();
+        }
+
+        function cancelRouteDrawing() {
+            isRouteDrawingMode = false;
+            if (tempRouteLine) map.removeLayer(tempRouteLine);
+            routePoints = [];
+            document.getElementById('startRouteBtn').style.display = 'inline-block';
+            document.getElementById('finishRouteBtn').style.display = 'none';
+            document.getElementById('cancelRouteBtn').style.display = 'none';
+            document.getElementById('saveRouteBtn').disabled = true;
+            showStatus('Рисование отменено', 'info');
+            map.getContainer().style.cursor = '';
+        }
+
+        function selectRouteColor(color) {
+            selectedRouteColor = color;
+            document.getElementById('routeColor').value = color;
+            document.querySelectorAll('.route-color-picker .color-option').forEach(el => el.className = 'color-option');
+            document.querySelector('.route-color-picker .color-option[style*="' + color + '"]').className = 'color-option active';
+            if (tempRouteLine) tempRouteLine.setStyle({ color: color });
+        }
+
+        function setMode(mode) {
+            if (isDrawingMode) cancelDrawing();
+            if (isRouteDrawingMode) cancelRouteDrawing();
+            currentMode = mode;
+            
+            document.getElementById('modePoint').className = 'btn' + (mode === 'point' ? ' active' : '');
+            document.getElementById('modeArea').className = 'btn' + (mode === 'area' ? ' active' : '');
+            document.getElementById('modeRoute').className = 'btn' + (mode === 'route' ? ' active' : '');
+            
+            document.getElementById('pointForm').style.display = mode === 'point' ? 'block' : 'none';
+            document.getElementById('areaForm').style.display = mode === 'area' ? 'block' : 'none';
+            document.getElementById('routeForm').style.display = mode === 'route' ? 'block' : 'none';
+            
+            if (mode === 'point') {
+                document.getElementById('coordsInfo').innerHTML = 'Кликните на карту, чтобы добавить место';
+            } else if (mode === 'area') {
+                document.getElementById('coordsInfo').innerHTML = 'Нажмите «Начать рисовать парк» и кликайте по карте';
+            } else {
+                document.getElementById('coordsInfo').innerHTML = 'Нажмите «Начать рисовать путь» и кликайте по карте';
+            }
+            map.getContainer().style.cursor = '';
+            resetSelection();
+        }
+
+        function addMarker() {
+            if (!selectedLat || !selectedLng) {
+                showStatus('Сначала кликните на карту', 'error');
+                return;
+            }
+            const name = document.getElementById('placeName').value.trim();
+            if (!name) {
+                showStatus('Введите название', 'error');
+                return;
+            }
+            
+            fetch('/add_marker', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lat: selectedLat,
+                    lng: selectedLng,
+                    name: name,
+                    rating: document.getElementById('placeRating').value,
+                    comment: document.getElementById('placeComment').value.trim(),
+                    photo: currentPhoto || ''
+                })
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'success') {
+                    showStatus('"' + name + '" добавлено', 'success');
+                    loadData();
+                    resetSelection();
+                    document.getElementById('placeName').value = '';
+                    document.getElementById('placeComment').value = '';
+                    document.getElementById('photoPreview').className = 'photo-preview';
+                    document.getElementById('photoPreview').src = '';
+                    currentPhoto = null;
+                }
+            })
+            .catch(e => showStatus('Ошибка: ' + e, 'error'));
+        }
+
+        function addArea() {
+            if (!polygonPoints || polygonPoints.length < 3) {
+                showStatus('Сначала нарисуйте парк', 'error');
+                return;
+            }
+            const name = document.getElementById('areaName').value.trim();
+            if (!name) {
+                showStatus('Введите название', 'error');
+                return;
+            }
+            
+            fetch('/add_area', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    coordinates: polygonPoints,
+                    rating: document.getElementById('areaRating').value,
+                    comment: document.getElementById('areaComment').value.trim(),
+                    photo: currentAreaPhoto || ''
+                })
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'success') {
+                    showStatus('"' + name + '" добавлен', 'success');
+                    loadData();
+                    cancelDrawing();
+                    document.getElementById('areaName').value = '';
+                    document.getElementById('areaComment').value = '';
+                    document.getElementById('areaPhotoPreview').className = 'photo-preview';
+                    document.getElementById('areaPhotoPreview').src = '';
+                    currentAreaPhoto = null;
+                }
+            })
+            .catch(e => showStatus('Ошибка: ' + e, 'error'));
+        }
+
+        function addRoute() {
+            if (!routePoints || routePoints.length < 2) {
+                showStatus('Сначала нарисуйте путь', 'error');
+                return;
+            }
+            const name = document.getElementById('routeName').value.trim();
+            if (!name) {
+                showStatus('Введите название', 'error');
+                return;
+            }
+            
+            fetch('/add_route', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    points: routePoints,
+                    color: document.getElementById('routeColor').value,
+                    comment: document.getElementById('routeComment').value.trim()
+                })
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'success') {
+                    showStatus('"' + name + '" добавлен', 'success');
+                    loadData();
+                    cancelRouteDrawing();
+                    document.getElementById('routeName').value = '';
+                    document.getElementById('routeComment').value = '';
+                }
+            })
+            .catch(e => showStatus('Ошибка: ' + e, 'error'));
+        }
+
+        function loadData() {
+            fetch('/get_markers')
+                .then(r => r.json())
+                .then(data => {
+                    allMarkers = data.markers || [];
+                    allAreas = data.areas || [];
+                    allRoutes = data.routes || [];
+                    renderMap();
+                    renderList();
+                    updateStats();
+                })
+                .catch(e => {
+                    console.error(e);
+                    showStatus('Ошибка загрузки данных', 'error');
+                });
+        }
+
+        function renderMap() {
+            markersLayer.clearLayers();
+            areasLayer.clearLayers();
+            routesLayer.clearLayers();
+            
+            // ТОЧКИ - с эмодзи
+            allMarkers.forEach(m => {
+                let iconHtml = '';
+                if (m.rating === 'like') {
+                    iconHtml = '❤️';
+                } else if (m.rating === 'dislike') {
+                    iconHtml = '💩';
+                } else {
+                    iconHtml = '<div style="background:#1a73e8;border-radius:50%;width:14px;height:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>';
+                }
+                
+                const icon = L.divIcon({
+                    html: `<div style="font-size:26px;line-height:1;text-align:center;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${iconHtml}</div>`,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                });
+                
+                let popup = '<b>' + m.name + '</b>';
+                if (m.comment) popup += '<br>' + m.comment;
+                if (m.photo) popup += '<br><img src="' + m.photo + '" style="max-width:180px;border-radius:4px;">';
+                
+                L.marker([m.lat, m.lng], { icon })
+                    .bindPopup(popup)
+                    .addTo(markersLayer);
+            });
+            
+            // ПАРКИ - зеленые с эмодзи в центре
+            allAreas.forEach(a => {
+                // Рисуем зеленый полигон
+                const polygon = L.polygon(a.coordinates, {
+                    color: '#2d7d46',
+                    weight: 3,
+                    opacity: 0.9,
+                    fillColor: '#4caf50',
+                    fillOpacity: 0.25
+                });
+                
+                // Вычисляем центр
+                let latSum = 0, lngSum = 0;
+                a.coordinates.forEach(p => {
+                    latSum += p[0];
+                    lngSum += p[1];
+                });
+                const centerLat = latSum / a.coordinates.length;
+                const centerLng = lngSum / a.coordinates.length;
+                
+                // Выбираем эмодзи
+                let emoji = '🌳';
+                if (a.rating === 'like') emoji = '❤️';
+                else if (a.rating === 'dislike') emoji = '💩';
+                
+                // Маркер с эмодзи в центре
+                const centerIcon = L.divIcon({
+                    html: `<div style="font-size:34px;line-height:1;text-align:center;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.5));">${emoji}</div>`,
+                    iconSize: [38, 38],
+                    iconAnchor: [19, 19]
+                });
+                
+                polygon
+                    .bindPopup('<b>' + a.name + '</b>' + (a.comment ? '<br>' + a.comment : ''))
+                    .addTo(areasLayer);
+                
+                L.marker([centerLat, centerLng], { icon: centerIcon })
+                    .addTo(areasLayer);
+            });
+            
+            // ПУТИ - цветные линии
+            allRoutes.forEach(r => {
+                L.polyline(r.points, {
+                    color: r.color || '#1a73e8',
+                    weight: 4,
+                    opacity: 0.8
+                })
+                .bindPopup('<b>🐾' + r.name + '</b>' + (r.comment ? '<br>' + r.comment : ''))
+                .addTo(routesLayer);
+            });
+        }
+
+        function renderList() {
+            const container = document.getElementById('placesList');
+            let items = [];
+            
+            if (currentTab === 'all' || currentTab === 'points') {
+                items = items.concat(allMarkers.map(m => ({ ...m, type: 'point' })));
+            }
+            if (currentTab === 'all' || currentTab === 'areas') {
+                items = items.concat(allAreas.map(a => ({ ...a, type: 'area' })));
+            }
+            if (currentTab === 'all' || currentTab === 'routes') {
+                items = items.concat(allRoutes.map(r => ({ ...r, type: 'route' })));
+            }
+            
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-message">Нет добавленных объектов</div>';
+                return;
+            }
+            
+            items.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            let html = '';
+            items.forEach(item => {
+                let typeName = 'Точка';
+                if (item.type === 'area') typeName = 'Парк';
+                else if (item.type === 'route') typeName = 'Путь';
+                
+                let color = '#1a73e8';
+                if (item.type === 'route') color = item.color || '#1a73e8';
+                else if (item.rating === 'like') color = '#34a853';
+                else if (item.rating === 'dislike') color = '#ea4335';
+                
+                let icon = '📍';
+                if (item.type === 'route') {
+                    icon = '🐾';
+                } else if (item.rating === 'like') {
+                    icon = '❤️';
+                } else if (item.rating === 'dislike') {
+                    icon = '💩';
+                }
+                
+                html += `
+                    <div class="place-item" style="border-left-color:${color}">
+                        <div class="info">
+                            <div>
+                                <span class="name">${icon} ${item.name}</span>
+                                <span class="type">(${typeName})</span>
+                            </div>
+                            <div class="details">${item.comment || 'Без комментария'}</div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn btn-warning btn-sm" onclick="openEditModal('${item.id}','${item.type}')">✏️</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}','${item.type}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateStats() {
+            document.getElementById('pointCount').textContent = allMarkers.length;
+            document.getElementById('areaCount').textContent = allAreas.length;
+            document.getElementById('routeCount').textContent = allRoutes.length;
+            
+            let likes = 0;
+            allMarkers.forEach(m => { if (m.rating === 'like') likes++; });
+            allAreas.forEach(a => { if (a.rating === 'like') likes++; });
+            document.getElementById('likeCount').textContent = likes;
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tabs .btn').forEach(b => b.className = 'btn');
+            document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).className = 'btn active';
+            renderList();
+        }
+
+        function openEditModal(id, type) {
+            editItemId = id;
+            editItemType = type;
+            
+            let item;
+            if (type === 'point') item = allMarkers.find(m => m.id === id);
+            else if (type === 'area') item = allAreas.find(a => a.id === id);
+            else item = allRoutes.find(r => r.id === id);
+            
+            if (!item) {
+                showStatus('Элемент не найден', 'error');
+                return;
+            }
+            
+            let title = 'Редактировать ';
+            if (type === 'point') title += 'место';
+            else if (type === 'area') title += 'парк';
+            else title += 'маршрут';
+            document.getElementById('editModalTitle').textContent = title;
+            
+            document.getElementById('editId').value = id;
+            document.getElementById('editType').value = type;
+            document.getElementById('editName').value = item.name || '';
+            document.getElementById('editRating').value = item.rating || 'neutral';
+            document.getElementById('editComment').value = item.comment || '';
+            
+            document.getElementById('editPhotoGroup').style.display = type !== 'route' ? 'block' : 'none';
+            document.getElementById('editColorGroup').style.display = type === 'route' ? 'block' : 'none';
+            
+            if (item.photo) {
+                document.getElementById('editPhotoPreview').src = item.photo;
+                document.getElementById('editPhotoPreview').className = 'photo-preview show';
+            } else {
+                document.getElementById('editPhotoPreview').className = 'photo-preview';
+                document.getElementById('editPhotoPreview').src = '';
+            }
+            
+            if (type === 'route') {
+                document.getElementById('editColor').value = item.color || '#1a73e8';
+                document.querySelectorAll('#editColorPicker .color-option').forEach(el => {
+                    el.className = 'color-option';
+                    if (el.style.backgroundColor === item.color) el.className = 'color-option active';
+                });
+            }
+            
+            document.getElementById('editModal').className = 'modal show';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').className = 'modal';
+        }
+
+        function saveEdit() {
+            const id = document.getElementById('editId').value;
+            const type = document.getElementById('editType').value;
+            const name = document.getElementById('editName').value.trim();
+            
+            if (!name) {
+                showStatus('Введите название', 'error');
+                return;
+            }
+            
+            const data = {
+                id: id,
+                name: name,
+                rating: document.getElementById('editRating').value,
+                comment: document.getElementById('editComment').value.trim()
+            };
+            
+            if (type !== 'route') {
+                const photo = document.getElementById('editPhotoPreview').src;
+                data.photo = photo && photo.startsWith('data:') ? photo : '';
+            } else {
+                data.color = document.getElementById('editColor').value;
+            }
+            
+            let url = '/update_marker';
+            if (type === 'area') url = '/update_area';
+            else if (type === 'route') url = '/update_route';
+            
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'success') {
+                    showStatus('Сохранено!', 'success');
+                    closeEditModal();
+                    loadData();
+                } else {
+                    showStatus('Ошибка: ' + d.message, 'error');
+                }
+            })
+            .catch(e => showStatus('Ошибка: ' + e, 'error'));
+        }
+
+        function deleteItem(id, type) {
+            if (!confirm('Удалить этот элемент?')) return;
+            
+            let url = '/delete_marker';
+            if (type === 'area') url = '/delete_area';
+            else if (type === 'route') url = '/delete_route';
+            
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id })
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'success') {
+                    showStatus('Удалено', 'success');
+                    loadData();
+                } else {
+                    showStatus('Ошибка удаления', 'error');
+                }
+            })
+            .catch(e => showStatus('Ошибка: ' + e, 'error'));
+        }
+
+        function clearAll() {
+            if (!confirm('Удалить все данные?')) return;
+            
+            fetch('/clear_all', { method: 'POST' })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.status === 'success') {
+                        showStatus('Все данные удалены', 'success');
+                        loadData();
+                    }
+                })
+                .catch(e => showStatus('Ошибка: ' + e, 'error'));
+        }
+
+        function handlePhotoUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    currentPhoto = ev.target.result;
+                    document.getElementById('photoPreview').src = currentPhoto;
+                    document.getElementById('photoPreview').className = 'photo-preview show';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleAreaPhotoUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    currentAreaPhoto = ev.target.result;
+                    document.getElementById('areaPhotoPreview').src = currentAreaPhoto;
+                    document.getElementById('areaPhotoPreview').className = 'photo-preview show';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleEditPhotoUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById('editPhotoPreview').src = ev.target.result;
+                    document.getElementById('editPhotoPreview').className = 'photo-preview show';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function selectEditColor(color) {
+            document.getElementById('editColor').value = color;
+            document.querySelectorAll('#editColorPicker .color-option').forEach(el => el.className = 'color-option');
+            document.querySelector('#editColorPicker .color-option[style*="' + color + '"]').className = 'color-option active';
+        }
+
+        function resetSelection() {
+            selectedLat = null;
+            selectedLng = null;
+            if (selectedMarker) {
+                map.removeLayer(selectedMarker);
+                selectedMarker = null;
+            }
+        }
+
+        function showStatus(msg, type) {
+            const div = document.getElementById('statusMessage');
+            div.textContent = msg;
+            div.className = 'status-message show ' + type;
+            clearTimeout(window.statusTimeout);
+            window.statusTimeout = setTimeout(() => {
+                div.className = 'status-message';
+            }, 4000);
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
